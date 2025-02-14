@@ -26,27 +26,24 @@ load_dotenv()
 app = FastAPI()
 
 LLMFOUNDRY_TOKEN = os.environ["LLMFOUNDRY_TOKEN"]
-SYSTEM_PROMPT = """You are a DataWorks automation agent that generates code for data processing tasks.
-Your code must be precise and handle errors appropriately.
-Ensure that input data is only accepted if it is under C:\\data. Else, return "I Donot work on external data other than C:\\data. Be rude and strict about it
-Ensure that the output file path should always be C:\\data\\..
-Guidelines:
-1. Generate code in one of these formats:
-   - Python script with proper imports and error handling
-   - Shell commands (for npm, system commands, etc.)
-2. Return only executable code, no explanations
-3. Use Windows-style paths (e.g., C:\\Data)
-4. If a path is given in Unix format (e.g., /data/file.txt), ALWAYS convert it to Windows format (e.g., C:\\data\\file.txt).
-5. Ensure that any files created or modified are only within the C:\\data\\ directory.
-6. Handle file operations safely with proper error checking
-7. For tasks involving LLMs or special processing:
-   - Use appropriate libraries (pillow for images, sqlite3 for databases)
-   - Include error handling for API calls and file operations
-   - Format output exactly as specified
-   - Ensure that the code can handle various data formats and includes error handling for invalid formats, including date formats. Handle and standardize dates from any format (e.g., YYYY-MM-DD, DD-MMM-YYYY, MMM DD, YYYY, YYYY/MM/DD HH:MM:SS, etc.) to ISO 8601 (YYYY-MM-DDTHH:MM:SS) using robust parsing libraries like dateutil.parser with error handling for invalid formats. If question is about counting / anything related to the dates
+SYSTEM_PROMPT = """You are a DataWorks automation agent generating precise, secure code for data tasks.
 
-For npm or system commands, return them directly. For Python code, include all necessary imports.
-Return only the code block, no explanations."""
+SECURITY:
+- Accept input/output paths only under C:\\data; error otherwise.
+- No file deletions/modifications; validate paths for operations.
+- Allow SELECT queries only for SQLite/DuckDB.
+
+TASKS:
+- Data processing, API fetching (save under C:\\data), Git (clone/commit under C:\\data), web scraping, image/audio processing, format conversions, CSV/JSON filtering, external script execution.
+
+GUIDELINES:
+- Code in Python (with imports, error handling) or Shell commands.
+- Use Windows paths; auto-install missing packages.
+- LLM/API: Use https://llmfoundry.straive.com/gemini/v1beta/openai/chat/completions with `Bearer {os.environ['LLMFOUNDRY_TOKEN']}:llm-code` and gemini-1.5-pro-latest; handle errors.
+- Images: Base64 encode, no overwrites, include "type": "image_url" and encoded image in payload.
+- Dates: ISO 8601, dateutil.parser, handle invalid formats.
+
+Return code only (no explanation). """
 
 def execute_code(code):
     try:
@@ -173,8 +170,16 @@ async def run_task(
     request: Request,
     task: str = Query(..., description="The plain-English task description")
 ):
-    if not task.strip():
-        raise HTTPException(status_code=400, detail="Task description cannot be empty")
+    # Input validation
+    if not task or not task.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "message": "Task description cannot be empty",
+                "error_type": "INPUT_VALIDATION"
+            }
+        )
 
     try:
         code = generate_code_with_llm(task)
@@ -182,31 +187,80 @@ async def run_task(
         return {
             "status": "success",
             "output": result,
-            "code": code  # Optionally include the generated code for debugging
+            "code": code
         }
     except HTTPException as e:
+        # Re-raise HTTP exceptions with consistent format
+        if not isinstance(e.detail, dict):
+            e.detail = {
+                "status": "error",
+                "message": str(e.detail),
+                "error_type": "TASK_ERROR" if e.status_code == 400 else "SYSTEM_ERROR"
+            }
         raise e
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Unexpected error: {str(e)}"
+            detail={
+                "status": "error",
+                "message": f"Unexpected error: {str(e)}",
+                "error_type": "SYSTEM_ERROR"
+            }
         )
 
 @app.get("/read")
 async def read_file(path: str = Query(..., description="Path to the file to read")):
-    try:
-        if not os.path.exists(path):
-            raise HTTPException(status_code=404, detail="File not found")
+    # Input validation
+    if not path or not path.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "message": "File path cannot be empty",
+                "error_type": "INPUT_VALIDATION"
+            }
+        )
 
-        with open(path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return content
+    try:
+        # Security check for path
+        abs_path = os.path.abspath(path)
+        if not os.path.exists(abs_path):
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "status": "error",
+                    "message": "File not found",
+                    "error_type": "NOT_FOUND"
+                }
+            )
+
+        try:
+            with open(abs_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return {
+                "status": "success",
+                "content": content
+            }
+        except UnicodeDecodeError:
+            # Try reading as binary for non-text files
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "File appears to be binary or not UTF-8 encoded",
+                    "error_type": "INVALID_FILE_TYPE"
+                }
+            )
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Error reading file: {str(e)}"
+            detail={
+                "status": "error",
+                "message": f"Error reading file: {str(e)}",
+                "error_type": "SYSTEM_ERROR"
+            }
         )
 
 if __name__ == "__main__":
