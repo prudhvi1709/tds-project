@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI()
 
-LLMFOUNDRY_TOKEN = os.environ["LLMFOUNDRY_TOKEN"]
+AIPROXY_TOKEN = os.environ["AIPROXY_TOKEN"]
 SYSTEM_PROMPT = """You are a DataWorks automation agent generating precise, secure code for data tasks.
 
 SECURITY:
@@ -39,7 +39,7 @@ TASKS:
 GUIDELINES:
 - Code in Python (with imports, error handling) or Shell commands.
 - Use Windows paths; auto-install missing packages.
-- LLM/API: Use https://llmfoundry.straive.com/gemini/v1beta/openai/chat/completions with `Bearer {os.environ['LLMFOUNDRY_TOKEN']}:llm-code` and gemini-1.5-pro-latest; handle errors.
+- LLM/API: Use https://llmfoundry.straive.com/gemini/v1beta/openai/chat/completions with `Bearer {os.environ['AIPROXY_TOKEN']}:llm-code` and gemini-1.5-pro-latest; handle errors.
 - Images: Base64 encode, no overwrites, include "type": "image_url" and encoded image in payload.
 - Dates: ISO 8601, dateutil.parser, handle invalid formats.
 
@@ -132,7 +132,7 @@ def generate_code_with_llm(task_description):
     try:
         response = requests.post(
             "https://llmfoundry.straive.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {LLMFOUNDRY_TOKEN}:tds-project"},
+            headers={"Authorization": f"Bearer {AIPROXY_TOKEN}:tds-project"},
             json={
                 "model": "gpt-4o-mini",
                 "messages": [
