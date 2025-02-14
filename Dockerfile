@@ -14,4 +14,4 @@ RUN pip install fastapi uvicorn openai python-multipart requests python-dotenv
 EXPOSE 8030
 
 # Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8030"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

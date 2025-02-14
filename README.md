@@ -24,7 +24,7 @@ To run the application, execute the following command:
 uv run main.py
 ```
 
-The application will start on `http://127.0.0.1:8030`.
+The application will start on `http://127.0.0.1:8000`.
 
 ### API Endpoints
 - **POST /run**: Execute a task based on a plain-English description.

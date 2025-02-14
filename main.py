@@ -32,9 +32,9 @@ TASKS:
 
 GUIDELINES:
 - Code in Python (with imports, error handling) or Shell commands.
-- Use Windows paths; auto-install missing packages.
-- LLM/API: Use https://llmfoundry.straive.com/gemini/v1beta/openai/chat/completions with `Bearer {os.environ['AIPROXY_TOKEN']}:llm-code` and gemini-1.5-pro-latest; handle errors.
-- Images: Base64 encode, no overwrites, include "type": "image_url" and encoded image in payload.
+- Use Windows paths; DO NOT import unneccesary packages; If any packages are requeired to be downloaded, include in python script itself  (example: try: import PIL except Importerror, modulenotfounderror: os.system('pip install PIL')).
+- LLM/API: Use https://llmfoundry.straive.com/openai/v1/chat/completions with `Bearer {os.environ['AIPROXY_TOKEN']}:llm-code` with model gpt-4o-mini; handle errors.
+- For tasks with extraction of data from image, convert image to base64, pass the task and encoded image (something like : base64.b64encode(image_file.read()).decode('utf-8')) to an LLM and get the required data (use api calls for that).
 - Dates: ISO 8601, dateutil.parser, handle invalid formats.
 
 Return code only (no explanation). """
@@ -259,4 +259,4 @@ async def read_file(path: str = Query(..., description="Path to the file to read
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8030)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
