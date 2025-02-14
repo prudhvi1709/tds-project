@@ -4,13 +4,7 @@
 #     "fastapi",
 #     "uvicorn",
 #     "openai",
-#     "pillow",
 #     "python-multipart",
-#     "sqlalchemy",
-#     "sqlite-utils",
-#     "scikit-learn",
-#     "sentence-transformers",
-#     "black",
 #     "requests",
 #     "python-dotenv"
 # ]
